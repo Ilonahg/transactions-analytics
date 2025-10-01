@@ -29,18 +29,28 @@ def home(
     df: Optional[pd.DataFrame] = None,
     provider: Optional[RequestsMarketDataProvider] = None,
 ) -> str:
-    """Страница «Главная»: приветствие, сводка по картам, топ-5, курсы и акции."""
+    """
+    Страница «Главная»: формирует JSON с приветствием, сводкой по картам,
+    топ-5 транзакциями, курсами валют и котировками акций.
+
+    Args:
+        datetime_str (str): Дата и время в формате YYYY-MM-DD HH:MM:SS.
+        df (pd.DataFrame, optional): Таблица транзакций. Если None — загрузится из Excel.
+        provider (RequestsMarketDataProvider, optional): Провайдер рыночных данных.
+
+    Returns:
+        str: JSON-строка с данными для главной страницы.
+    """
     dt = parse_datetime_str(datetime_str)
     start = dt.replace(day=1).date()
     end = dt.date()
 
-    # ВАЖНО: не использовать "df or ..." для DataFrame
     if df is None:
         df = load_transactions_from_excel()
 
     df_range = filter_by_date_range(df, start, end)
 
-    # Сводка по картам: расходы и кешбэк (1 руб/100 руб)
+    # Сводка по картам
     cards = []
     for card, grp in df_range.groupby("Карта"):
         expenses = grp[grp["Сумма операции"].apply(is_expense)]["Сумма операции"].abs().sum()
@@ -53,9 +63,11 @@ def home(
             }
         )
 
-    # Топ-5 транзакций по абсолютной сумме
+    # Топ-5 транзакций
     top5 = (
-        df_range.assign(abs_amount=df_range["Сумма операции"].abs()).sort_values("abs_amount", ascending=False).head(5)
+        df_range.assign(abs_amount=df_range["Сумма операции"].abs())
+        .sort_values("abs_amount", ascending=False)
+        .head(5)
     )
     top_transactions = [
         {
@@ -77,7 +89,7 @@ def home(
     result = {
         "greeting": greeting_for_time(dt),
         "cards": cards,
-        "top_transactions": top_transactions,  # ключ, который ждут тесты
+        "top_transactions": top_transactions,
         "currency_rates": [{"currency": c, "rate": float(r)} for c, r in currency_rates.items()],
         "stock_prices": [{"stock": t, "price": float(p)} for t, p in stock_prices.items()],
     }
@@ -91,7 +103,19 @@ def events(
     *,
     provider: Optional[RequestsMarketDataProvider] = None,
 ) -> str:
-    """Страница «События»: расходы/поступления + курсы/акции за период."""
+    """
+    Страница «События»: формирует JSON с расходами, доходами,
+    курсами валют и акциями за указанный период.
+
+    Args:
+        df (pd.DataFrame): Таблица транзакций.
+        date_str (str): Конечная дата периода (формат YYYY-MM-DD).
+        range_code (str, optional): Код периода ("M" - месяц, "Y" - год, "W" - неделя).
+        provider (RequestsMarketDataProvider, optional): Провайдер рыночных данных.
+
+    Returns:
+        str: JSON-строка с данными для страницы «События».
+    """
     end = parse_date_str(date_str)
     start = period_start(end, range_code)
     df_range = filter_by_date_range(df, start, end)

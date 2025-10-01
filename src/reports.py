@@ -13,8 +13,16 @@ logger = logging.getLogger(__name__)
 
 
 def save_report(filename: Optional[str] = None):
-    """Декоратор: сохраняет результат функции-отчёта в файл (xlsx/json)."""
+    """
+    Декоратор для сохранения отчётов в файл (xlsx или json).
 
+    Args:
+        filename (Optional[str]): Имя файла для сохранения. Если None —
+            имя формируется автоматически.
+
+    Returns:
+        Callable: Обёртка для функции-отчёта.
+    """
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -39,7 +47,15 @@ def save_report(filename: Optional[str] = None):
 
 
 def _three_months_ago_start(d: date) -> date:
-    """Первый день месяца три месяца назад (включая текущий как 1-й)."""
+    """
+    Возвращает первый день месяца, три месяца назад (включая текущий).
+
+    Args:
+        d (date): Опорная дата.
+
+    Returns:
+        date: Дата начала периода.
+    """
     month = ((d.month - 3 - 1) % 12) + 1
     year = d.year + ((d.month - 3 - 1) // 12)
     return date(year, month, 1)
@@ -47,7 +63,17 @@ def _three_months_ago_start(d: date) -> date:
 
 @save_report()
 def spending_by_category(transactions: pd.DataFrame, category: str, date_str: Optional[str] = None) -> pd.DataFrame:
-    """Траты по категории за последние 3 месяца от даты (или от сегодня)."""
+    """
+    Траты по категории за последние 3 месяца от указанной даты.
+
+    Args:
+        transactions (pd.DataFrame): Таблица транзакций.
+        category (str): Название категории.
+        date_str (Optional[str]): Дата отсчёта (формат YYYY-MM-DD). Если None — берётся текущая.
+
+    Returns:
+        pd.DataFrame: Сводная таблица трат по месяцам.
+    """
     ref = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
     start = _three_months_ago_start(ref)
     mask = (transactions["Дата операции"] >= start) & (transactions["Дата операции"] <= ref)
@@ -60,7 +86,16 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date_str: Op
 
 @save_report()
 def spending_by_weekday(transactions: pd.DataFrame, date_str: Optional[str] = None) -> pd.DataFrame:
-    """Средние дневные траты по дням недели за последние 3 месяца."""
+    """
+    Средние дневные траты по дням недели за последние 3 месяца.
+
+    Args:
+        transactions (pd.DataFrame): Таблица транзакций.
+        date_str (Optional[str]): Опорная дата. Если None — берётся текущая.
+
+    Returns:
+        pd.DataFrame: Таблица со средними тратами по дням недели.
+    """
     ref = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
     start = _three_months_ago_start(ref)
     df = transactions[(transactions["Дата операции"] >= start) & (transactions["Дата операции"] <= ref)].copy()
@@ -77,7 +112,16 @@ def spending_by_weekday(transactions: pd.DataFrame, date_str: Optional[str] = No
 
 @save_report()
 def spending_by_workday(transactions: pd.DataFrame, date_str: Optional[str] = None) -> pd.DataFrame:
-    """Средние дневные траты в рабочий/выходной день за последние 3 месяца."""
+    """
+    Средние дневные траты в рабочие и выходные дни за последние 3 месяца.
+
+    Args:
+        transactions (pd.DataFrame): Таблица транзакций.
+        date_str (Optional[str]): Опорная дата. Если None — берётся текущая.
+
+    Returns:
+        pd.DataFrame: Таблица со средними тратами по типу дня.
+    """
     ref = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
     start = _three_months_ago_start(ref)
     df = transactions[(transactions["Дата операции"] >= start) & (transactions["Дата операции"] <= ref)].copy()
